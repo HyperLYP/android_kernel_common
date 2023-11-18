@@ -679,6 +679,35 @@ config TCP_CONG_BBR
 	  AQM schemes that do not provide a delay signal. It requires the fq
 	  ("Fair Queue") pacing packet scheduler.
 
+config TCP_CONG_BRUTAL
+	tristate "BRUTAL TCP"
+	default n
+	help
+
+	This is Hysteria's custom congestion control algorithm. Unlike BBR, Brutal
+	operates on a fixed rate model and does not reduce its speed in response
+	to packet loss or RTT changes. If it fails to meet the predetermined target
+	rate, the algorithm calculates the rate of packet loss and compensates by
+	increasing speed. This only works if you know (and accurately specify) the
+	theoretical maximum speed of your current connection. It's particularly
+	effective at seizing bandwidth in congested, best-effort delivery networks,
+	hence its name.
+	Brutal will also work if you set your bandwidth values below your connection's
+	maximum speed; it will simply serve as a speed limiter. However, DO NOT set it
+	higher than what's possible, as this will result in a slow, unstable connection
+	and wasted data.
+	Congestion control algorithms controls the sending of data. From the client's
+	point of view, if the user doesn't provide his bandwidth value for download
+	(but provides it for upload), the Hysteria server will send data to the client
+	using BBR, but the client will upload data to the server using Brutal, and vice
+	versa. The client can provide both, so both directions will use Brutal, or 
+	neither, so both will use BBR.
+	The special case, as mentioned above, is when the server has ignoreClientBandwidth
+	enabled, in which case both sides will always use BBR, no matter what the client's
+	bandwidth values are.
+	The server's bandwidth limit only applies to Brutal at the moment. It has no
+	effect on BBR.
+
 choice
 	prompt "Default TCP congestion control"
 	default DEFAULT_CUBIC
@@ -716,6 +745,9 @@ choice
 	config DEFAULT_BBR
 		bool "BBR" if TCP_CONG_BBR=y
 
+	config DEFAULT_BRUTAL
+		bool "Brutal" if TCP_CONG_BRUTAL=y
+
 	config DEFAULT_RENO
 		bool "Reno"
 endchoice
@@ -740,6 +772,7 @@ config DEFAULT_TCP_CONG
 	default "dctcp" if DEFAULT_DCTCP
 	default "cdg" if DEFAULT_CDG
 	default "bbr" if DEFAULT_BBR
+	default "brutal" if DEFAULT_BRUTAL
 	default "cubic"
 
 config TCP_MD5SIG
